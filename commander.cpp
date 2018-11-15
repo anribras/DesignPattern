@@ -1,0 +1,106 @@
+#include <iostream>
+#include <memory>
+#include <string>
+
+
+class Receiver {
+	public:
+		Receiver(std::string n):m_name(n) {} 
+		virtual ~Receiver() =  default;
+		virtual int action(const void* sth) {
+			std::cout << "Origin exec" <<std::endl;
+			return 0;
+		}
+		std::string & getName() {return m_name;} 
+	private:
+		std::string m_name;
+
+};
+
+class Command {
+	public:
+		Command(std::string n):m_name(n) {} 
+		virtual ~Command() =  default;
+		void set_receiver(const std::shared_ptr<Receiver> & r ) {m_recv = r;}
+		int execute(const void* sth) {
+			if (auto res = m_recv.lock()) {
+				std::cout << "Command type: "  << getName() << std::endl;
+				return res->action(sth);
+			}
+			else {
+				std::cout << "No Receiver !" << std::endl;
+			}
+			return -1;
+		}
+		std::string & getName() {return m_name;} 
+	private:
+		std::weak_ptr<Receiver> m_recv;
+		std::string m_name;
+};
+
+class Invoker {
+	public:
+		Invoker(std::string n):m_name(n) {} 
+		virtual ~Invoker() =  default;
+		void set_command(const std::shared_ptr<Command> & c) {m_c = c;}
+		void call(const void* sth) {
+			if (auto res =  m_c.lock()) {
+				std::cout << getName()  << " Put an order." << std::endl;
+				res->execute(sth);
+			} else {
+				std::cout << "No commands !" << std::endl;
+			}
+
+		}
+		std::string & getName() {return m_name;} 
+	private:
+		std::weak_ptr<Command> m_c;
+		std::string m_name;
+};
+
+class Soldier : public Receiver {
+	public:
+		Soldier(std::string n): Receiver(n) {}
+		virtual ~Soldier() =  default;
+		int action(const void* sth) {
+			std::cout  << getName() <<" will do it :" << std::endl;
+			std::cout << (const char*)sth << std::endl;
+			return 0;
+		}
+};
+
+
+
+int main(int argc , char* argv[])
+{
+
+	auto generalYang = std::make_shared<Invoker>("General Yang");
+
+	auto command = std::make_shared<Command>("inner affair");
+	auto Ding = std::make_shared<Soldier>("Ding");
+	auto Yu = std::make_shared<Soldier>("Yu");
+
+	// invoker 发出某一类型的命令 
+	generalYang->set_command(command);
+
+	// command 像中间的领导, binding一个具体的接受者
+	// command 也可以继承细化, 只看有没有必要了
+	// 但是命令是单向的
+	// 这个模式感觉更像是 mediator 模式的一种特殊情况
+	// mediator更强调mediator的中介作用,
+	// 可以选择很多的不同的两端,两端也可以选择不同的commander
+	command->set_receiver(Ding);
+	// invoker 调用 receiver 
+	generalYang->call("Go and fetch me the water");
+
+	std::cout << std::endl;
+
+	command->set_receiver(Yu);
+	generalYang->call("Give me the map");
+
+
+	return 0;
+}
+
+
+
